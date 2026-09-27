@@ -58,7 +58,10 @@ export async function getAvailableSlots(appointmentTypeId: number, dateStr: stri
   const fullDayBlocked = overrides.some((o) => o.isBlocked && !o.startTime);
   if (fullDayBlocked) return [];
 
-  const combine = (time: string) => fromZonedTime(`${dateStr}T${time}:00`, type.timezone);
+  // Postgres returns `time` columns as "HH:MM:SS" regardless of how they were
+  // inserted; normalize to "HH:MM" before appending our own ":00" so this
+  // works whether the value came from the DB or from a raw "HH:MM" input.
+  const combine = (time: string) => fromZonedTime(`${dateStr}T${time.slice(0, 5)}:00`, type.timezone);
 
   const windows: TimeSlot[] = [];
   for (const rule of rules) {

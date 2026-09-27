@@ -5,8 +5,9 @@ import { adminUsers, appointmentTypes, availabilityRules } from "./schema";
 import { eq } from "drizzle-orm";
 
 /**
- * Runs automatically on every boot (see instrumentation.ts). It is safe to run
- * repeatedly: it only creates things that don't exist yet.
+ * Runs on every deploy, right before the server starts (see the `db:seed`
+ * step in railway.json's startCommand). Safe to run repeatedly — it only
+ * creates things that don't exist yet.
  */
 export async function seed() {
   await seedFirstAdmin();
@@ -58,3 +59,10 @@ async function seedDefaultDiscoveryCall() {
   }
   console.log("[seed] Created default 'Discovery Call' appointment type with weekday availability.");
 }
+
+seed()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("[seed] Failed:", error);
+    process.exit(1);
+  });
