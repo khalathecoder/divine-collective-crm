@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { listContacts } from "@/lib/crm/contacts";
+import { NewContactForm } from "./NewContactForm";
 
 export default async function ContactsPage({
   searchParams,
@@ -69,6 +70,11 @@ export default async function ContactsPage({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="card max-w-lg">
+        <h2 className="mb-3 font-semibold">Add a contact</h2>
+        <NewContactForm />
       </div>
     </div>
   );

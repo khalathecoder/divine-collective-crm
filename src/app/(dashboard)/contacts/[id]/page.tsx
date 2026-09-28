@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { getContactWithHistory } from "@/lib/crm/contacts";
+import { ContactHeader } from "./ContactHeader";
 
 export default async function ContactDetailPage({ params }: { params: { id: string } }) {
   const result = await getContactWithHistory(Number(params.id));
@@ -11,17 +12,7 @@ export default async function ContactDetailPage({ params }: { params: { id: stri
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{contact.name}</h1>
-        <p className="text-gray-500">{contact.email}{contact.phone ? ` · ${contact.phone}` : ""}</p>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {contact.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand-dark">
-              {tag}
-            </span>
-          ))}
-        </div>
-      </div>
+      <ContactHeader contact={contact} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="card">

@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { contacts, contactEvents, type Contact } from "../db/schema";
+import { contacts, contactEvents, type Contact, type InsertContact } from "../db/schema";
 
 export interface UpsertContactInput {
   name: string;
@@ -44,6 +44,51 @@ export async function upsertContact(input: UpsertContactInput): Promise<Contact>
     .returning();
   if (!updated) throw new Error("Failed to update contact");
   return updated;
+}
+
+export interface CreateContactInput {
+  name: string;
+  email: string;
+  phone?: string;
+  source?: string;
+  tags?: string[];
+  notes?: string;
+}
+
+/** Manual "Add contact" from the CRM dashboard. Throws if the email is already in use. */
+export async function createContact(input: CreateContactInput): Promise<Contact> {
+  const email = input.email.trim().toLowerCase();
+  const [created] = await db
+    .insert(contacts)
+    .values({
+      name: input.name,
+      email,
+      phone: input.phone || null,
+      source: input.source || "manual",
+      tags: input.tags ?? [],
+      notes: input.notes || null,
+    })
+    .returning();
+  if (!created) throw new Error("Failed to create contact");
+  await logContactEvent(created.id, "contact.created", "Added manually in the CRM");
+  return created;
+}
+
+export async function updateContact(id: number, input: Partial<InsertContact>): Promise<Contact> {
+  const patch = { ...input };
+  if (typeof patch.email === "string") patch.email = patch.email.trim().toLowerCase();
+
+  const [updated] = await db
+    .update(contacts)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(contacts.id, id))
+    .returning();
+  if (!updated) throw new Error("Contact not found");
+  return updated;
+}
+
+export async function deleteContact(id: number): Promise<void> {
+  await db.delete(contacts).where(eq(contacts.id, id));
 }
 
 export async function logContactEvent(

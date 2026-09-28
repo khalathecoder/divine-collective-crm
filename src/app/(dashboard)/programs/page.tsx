@@ -3,13 +3,17 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { listPrograms } from "@/lib/crm/programs";
 import { NewProgramForm } from "./NewProgramForm";
+import { ImportLiveButton } from "./ImportLiveButton";
 
 export default async function ProgramsPage() {
   const programs = await listPrograms();
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Programs & Pricing</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Programs & Pricing</h1>
+        <ImportLiveButton />
+      </div>
 
       <div className="card overflow-hidden !p-0">
         <table className="w-full text-sm">
