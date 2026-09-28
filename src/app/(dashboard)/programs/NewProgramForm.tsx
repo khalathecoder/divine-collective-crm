@@ -3,10 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const TYPES_REQUIRING_CALENDAR = ["coaching", "event"];
+
 export function NewProgramForm() {
   const router = useRouter();
+  const [type, setType] = useState("coaching");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const needsCalendar = TYPES_REQUIRING_CALENDAR.includes(type);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,7 +29,15 @@ export function NewProgramForm() {
         name: form.get("name"),
         description: form.get("description") || undefined,
         priceCents: Math.round(priceDollars * 100),
-        type: form.get("type"),
+        type,
+        calendar: needsCalendar
+          ? {
+              durationMinutes: Number(form.get("durationMinutes")),
+              weekday: Number(form.get("weekday")),
+              startTime: form.get("startTime"),
+              endTime: form.get("endTime"),
+            }
+          : undefined,
       }),
     });
     setLoading(false);
@@ -35,6 +49,7 @@ export function NewProgramForm() {
     }
     router.refresh();
     e.currentTarget.reset();
+    setType("coaching");
   }
 
   return (
@@ -59,7 +74,7 @@ export function NewProgramForm() {
         </div>
         <div>
           <label className="label">Type</label>
-          <select name="type" className="input">
+          <select name="type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
             <option value="coaching">Coaching</option>
             <option value="digital">Digital</option>
             <option value="event">Event</option>
@@ -67,6 +82,41 @@ export function NewProgramForm() {
           </select>
         </div>
       </div>
+
+      {needsCalendar && (
+        <div className="rounded-md border border-brand/30 bg-brand/5 p-3">
+          <p className="mb-2 text-sm font-medium text-brand-dark">
+            Calendar setup (required for {type} programs)
+          </p>
+          <p className="mb-3 text-xs text-gray-500">
+            Sets the first day/hours people can book this program. It gets its own independent
+            calendar — you can add more days or change this any time from the program's page.
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="col-span-2 sm:col-span-1">
+              <label className="label">Day</label>
+              <select name="weekday" className="input" defaultValue="1">
+                {WEEKDAYS.map((day, i) => (
+                  <option key={day} value={i}>{day}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">From</label>
+              <input name="startTime" type="time" defaultValue="10:00" required className="input" />
+            </div>
+            <div>
+              <label className="label">To</label>
+              <input name="endTime" type="time" defaultValue="16:00" required className="input" />
+            </div>
+            <div>
+              <label className="label">Duration (min)</label>
+              <input name="durationMinutes" type="number" defaultValue={30} min={5} required className="input" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <button className="btn" disabled={loading}>{loading ? "Adding..." : "Add program"}</button>
     </form>
   );

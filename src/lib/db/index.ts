@@ -38,4 +38,11 @@ export const db: Db = new Proxy({} as Db, {
   },
 });
 
+/**
+ * For code that needs the real client directly (e.g. `db.transaction(...)`),
+ * bypassing the lazy proxy to avoid any risk of `this` binding surprises
+ * inside multi-step transactional logic.
+ */
+export const getDb = getRealDb;
+
 export type { Db };
