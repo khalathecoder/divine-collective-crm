@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { listContacts } from "@/lib/crm/contacts";
 import { NewContactForm } from "./NewContactForm";
+import { ImportCsvForm } from "./ImportCsvForm";
 
 export default async function ContactsPage({
   searchParams,
@@ -46,6 +47,11 @@ export default async function ContactsPage({
                   <Link href={`/contacts/${c.id}`} className="font-medium text-brand hover:underline">
                     {c.name}
                   </Link>
+                  {c.unsubscribedAt && (
+                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                      Unsubscribed
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-gray-600">{c.email}</td>
                 <td className="px-4 py-3 text-gray-600">{c.source ?? "—"}</td>
@@ -72,9 +78,12 @@ export default async function ContactsPage({
         </table>
       </div>
 
-      <div className="card max-w-lg">
-        <h2 className="mb-3 font-semibold">Add a contact</h2>
-        <NewContactForm />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="card">
+          <h2 className="mb-3 font-semibold">Add a contact</h2>
+          <NewContactForm />
+        </div>
+        <ImportCsvForm />
       </div>
     </div>
   );

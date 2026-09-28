@@ -1,9 +1,8 @@
-import { db } from "../db";
-import { purchases } from "../db/schema";
 import type { WebsiteWebhookPayload } from "../validation";
 import { upsertContact, logContactEvent } from "./contacts";
 import { getProgramBySlug } from "./programs";
 import { enrollContactInMatchingFunnels } from "./funnels";
+import { recordPurchase } from "./purchases";
 
 /**
  * Single entry point for everything the dicollectivellc.com website reports:
@@ -43,7 +42,7 @@ export async function ingestWebsiteEvent(payload: WebsiteWebhookPayload): Promis
     case "purchase.completed": {
       const program = payload.programSlug ? await getProgramBySlug(payload.programSlug) : undefined;
       if (program) {
-        await db.insert(purchases).values({
+        await recordPurchase({
           contactId: contact.id,
           programId: program.id,
           amountPaidCents: payload.amountCents ?? program.priceCents,
