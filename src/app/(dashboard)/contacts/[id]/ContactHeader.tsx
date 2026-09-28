@@ -96,7 +96,14 @@ export function ContactHeader({ contact }: { contact: Contact }) {
   return (
     <div className="flex items-start justify-between">
       <div>
-        <h1 className="text-2xl font-semibold">{contact.name}</h1>
+        <h1 className="text-2xl font-semibold">
+          {contact.name}
+          {contact.unsubscribedAt && (
+            <span className="ml-2 align-middle rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-500">
+              Unsubscribed {new Date(contact.unsubscribedAt).toLocaleDateString()}
+            </span>
+          )}
+        </h1>
         <p className="text-gray-500">
           {contact.email}
           {contact.phone ? ` · ${contact.phone}` : ""}

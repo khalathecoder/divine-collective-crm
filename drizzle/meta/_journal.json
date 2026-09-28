@@ -15,6 +15,13 @@
       "when": 1790554342800,
       "tag": "0001_dazzling_rafael_vega",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790555839642,
+      "tag": "0002_gorgeous_violations",
+      "breakpoints": true
     }
   ]
 }

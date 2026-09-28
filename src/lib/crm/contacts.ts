@@ -1,6 +1,7 @@
-import { eq, sql } from "drizzle-orm";
+import crypto from "node:crypto";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { contacts, contactEvents, type Contact, type InsertContact } from "../db/schema";
+import { contacts, contactEvents, funnelEnrollments, type Contact, type InsertContact } from "../db/schema";
 
 export interface UpsertContactInput {
   name: string;
@@ -95,9 +96,10 @@ export async function logContactEvent(
   contactId: number,
   type: string,
   label: string,
-  payload: Record<string, unknown> = {}
+  payload: Record<string, unknown> = {},
+  createdAt?: Date
 ): Promise<void> {
-  await db.insert(contactEvents).values({ contactId, type, label, payload });
+  await db.insert(contactEvents).values({ contactId, type, label, payload, ...(createdAt ? { createdAt } : {}) });
 }
 
 export async function listContacts(search?: string): Promise<Contact[]> {
@@ -152,4 +154,37 @@ export async function listContactsByProgram(programId: number): Promise<Contact[
 export async function listContactsByTag(tag: string): Promise<Contact[]> {
   const all = await db.query.contacts.findMany();
   return all.filter((c) => c.tags.includes(tag));
+}
+
+/** Returns the contact's unsubscribe token, generating and saving one first if it doesn't have one yet. */
+export async function ensureUnsubscribeToken(contact: Contact): Promise<string> {
+  if (contact.unsubscribeToken) return contact.unsubscribeToken;
+  const token = crypto.randomBytes(24).toString("hex");
+  await db.update(contacts).set({ unsubscribeToken: token }).where(eq(contacts.id, contact.id));
+  return token;
+}
+
+/**
+ * Unsubscribes a contact by their one-click token: stops every active
+ * Funnel they're currently enrolled in, and (via upsertContact/enrollment
+ * checks) keeps them out of any future one. Returns null for an unknown
+ * token so the unsubscribe page can show a generic "not found" message.
+ */
+export async function unsubscribeByToken(token: string): Promise<Contact | null> {
+  const contact = await db.query.contacts.findFirst({ where: eq(contacts.unsubscribeToken, token) });
+  if (!contact) return null;
+  if (contact.unsubscribedAt) return contact;
+
+  const [updated] = await db
+    .update(contacts)
+    .set({ unsubscribedAt: new Date() })
+    .where(eq(contacts.id, contact.id))
+    .returning();
+
+  await db
+    .update(funnelEnrollments)
+    .set({ status: "canceled" })
+    .where(and(eq(funnelEnrollments.contactId, contact.id), eq(funnelEnrollments.status, "active")));
+
+  return updated ?? contact;
 }

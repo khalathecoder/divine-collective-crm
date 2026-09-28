@@ -4,6 +4,7 @@ import {
   funnels,
   funnelSteps,
   funnelEnrollments,
+  contacts,
   type InsertFunnel,
   type InsertFunnelStep,
   type Funnel,
@@ -65,6 +66,9 @@ export async function enrollContactInMatchingFunnels(
   triggerEvent: string,
   programId?: number
 ): Promise<void> {
+  const contact = await db.query.contacts.findFirst({ where: eq(contacts.id, contactId) });
+  if (contact?.unsubscribedAt) return;
+
   const candidates = await db.query.funnels.findMany({
     where: (f, { eq: fEq, and: fAnd }) =>
       fAnd(fEq(f.active, true), fEq(f.triggerEvent, triggerEvent)),

@@ -40,11 +40,16 @@ export const contacts = pgTable(
     source: varchar("source", { length: 120 }), // e.g. "website:contact-form", "instagram", "manual"
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     notes: text("notes"),
+    /** Random per-contact secret used to build a one-click unsubscribe link in every marketing email. */
+    unsubscribeToken: varchar("unsubscribe_token", { length: 64 }),
+    /** Set the moment they unsubscribe. Once set, they're never auto-enrolled in a Funnel again. */
+    unsubscribedAt: timestamp("unsubscribed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
     emailIdx: uniqueIndex("contacts_email_idx").on(table.email),
+    unsubscribeTokenIdx: uniqueIndex("contacts_unsubscribe_token_idx").on(table.unsubscribeToken),
   })
 );
 
