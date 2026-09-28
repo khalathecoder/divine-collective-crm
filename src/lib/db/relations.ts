@@ -28,9 +28,13 @@ export const contactEventsRelations = relations(contactEvents, ({ one }) => ({
   contact: one(contacts, { fields: [contactEvents.contactId], references: [contacts.id] }),
 }));
 
-export const programsRelations = relations(programs, ({ many }) => ({
+export const programsRelations = relations(programs, ({ many, one }) => ({
   purchases: many(purchases),
   funnels: many(funnels),
+  appointmentType: one(appointmentTypes, {
+    fields: [programs.id],
+    references: [appointmentTypes.programId],
+  }),
 }));
 
 export const purchasesRelations = relations(purchases, ({ one }) => ({
@@ -38,10 +42,11 @@ export const purchasesRelations = relations(purchases, ({ one }) => ({
   program: one(programs, { fields: [purchases.programId], references: [programs.id] }),
 }));
 
-export const appointmentTypesRelations = relations(appointmentTypes, ({ many }) => ({
+export const appointmentTypesRelations = relations(appointmentTypes, ({ many, one }) => ({
   appointments: many(appointments),
   availabilityRules: many(availabilityRules),
   availabilityOverrides: many(availabilityOverrides),
+  program: one(programs, { fields: [appointmentTypes.programId], references: [programs.id] }),
 }));
 
 export const availabilityRulesRelations = relations(availabilityRules, ({ one }) => ({

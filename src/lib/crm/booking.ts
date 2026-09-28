@@ -19,6 +19,38 @@ export async function getAppointmentTypeBySlug(slug: string) {
   return db.query.appointmentTypes.findFirst({ where: eq(appointmentTypes.slug, slug) });
 }
 
+export async function getAppointmentTypeByProgramId(programId: number) {
+  return db.query.appointmentTypes.findFirst({
+    where: eq(appointmentTypes.programId, programId),
+    with: { availabilityRules: true, availabilityOverrides: true },
+  });
+}
+
+/**
+ * Creates a dedicated calendar for one program, named and slugged after it.
+ * Its slots are independent of every other calendar — a booking here never
+ * blocks or is blocked by bookings on another program's calendar.
+ */
+export async function createCalendarForProgram(
+  programId: number,
+  programName: string,
+  programSlug: string
+): Promise<AppointmentType> {
+  const [created] = await db
+    .insert(appointmentTypes)
+    .values({
+      slug: programSlug,
+      name: programName,
+      durationMinutes: 30,
+      bufferMinutes: 15,
+      timezone: "America/New_York",
+      programId,
+    })
+    .returning();
+  if (!created) throw new Error("Failed to create calendar");
+  return created;
+}
+
 export interface TimeSlot {
   start: Date;
   end: Date;

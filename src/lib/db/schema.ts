@@ -144,10 +144,17 @@ export const appointmentTypes = pgTable(
     bufferMinutes: integer("buffer_minutes").notNull().default(15),
     timezone: varchar("timezone", { length: 60 }).notNull().default("America/New_York"),
     active: boolean("active").notNull().default(true),
+    /**
+     * When set, this calendar belongs to one Program (e.g. "Crown Hour"
+     * booking a private session). Bookings on one appointment type never
+     * block slots on another — each has its own independent calendar.
+     */
+    programId: integer("program_id").references(() => programs.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
     slugIdx: uniqueIndex("appointment_types_slug_idx").on(table.slug),
+    programIdx: uniqueIndex("appointment_types_program_idx").on(table.programId),
   })
 );
 

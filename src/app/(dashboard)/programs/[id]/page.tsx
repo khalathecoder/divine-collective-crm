@@ -4,14 +4,19 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getProgram } from "@/lib/crm/programs";
 import { listContactsByProgram } from "@/lib/crm/contacts";
+import { getAppointmentTypeByProgramId } from "@/lib/crm/booking";
 import { EditProgramForm } from "./EditProgramForm";
 import { CopyEmailsButton } from "./CopyEmailsButton";
+import { ProgramCalendarSection } from "./ProgramCalendarSection";
 
 export default async function ProgramDetailPage({ params }: { params: { id: string } }) {
   const program = await getProgram(Number(params.id));
   if (!program) notFound();
 
-  const buyers = await listContactsByProgram(program.id);
+  const [buyers, appointmentType] = await Promise.all([
+    listContactsByProgram(program.id),
+    getAppointmentTypeByProgramId(program.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -52,6 +57,8 @@ export default async function ProgramDetailPage({ params }: { params: { id: stri
           </p>
         </div>
       </div>
+
+      <ProgramCalendarSection programId={program.id} appointmentType={appointmentType ?? null} />
     </div>
   );
 }
