@@ -4,6 +4,7 @@ import Link from "next/link";
 import { listContacts } from "@/lib/crm/contacts";
 import { NewContactForm } from "./NewContactForm";
 import { ImportCsvForm } from "./ImportCsvForm";
+import { ImportOrdersForm } from "./ImportOrdersForm";
 
 export default async function ContactsPage({
   searchParams,
@@ -84,6 +85,7 @@ export default async function ContactsPage({
           <NewContactForm />
         </div>
         <ImportCsvForm />
+        <ImportOrdersForm />
       </div>
     </div>
   );
