@@ -10,6 +10,7 @@ interface ImportResult {
   alreadyImported: number;
   skippedNoEmail: number;
   purchasesRecorded: number;
+  phoneOnlyPlaceholders: number;
 }
 
 export function ImportCsvForm() {
@@ -60,6 +61,8 @@ export function ImportCsvForm() {
           {result.purchasesRecorded} new purchase(s) recorded, out of {result.totalRows} rows.
           {result.alreadyImported > 0 && ` ${result.alreadyImported} row(s) were already imported and left as-is.`}
           {result.skippedNoEmail > 0 && ` Skipped ${result.skippedNoEmail} row(s) with no email.`}
+          {result.phoneOnlyPlaceholders > 0 &&
+            ` ${result.phoneOnlyPlaceholders} contact(s) only have a phone number on file (tagged "no-real-email") — don't put them in an email funnel.`}
         </p>
       )}
       <input

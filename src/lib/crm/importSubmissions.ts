@@ -28,6 +28,9 @@ const EXPECTED_HEADER = [
   "Metadata",
 ];
 
+/** ID, Name, Email, Phone, Type, Message, Read, Created At — always at these fixed positions. */
+const FRONT_COUNT = 8;
+
 const TYPE_LABELS: Record<string, string> = {
   contact: "Contact form",
   survey: "Survey",
@@ -44,8 +47,7 @@ const TYPE_LABELS: Record<string, string> = {
  * Only these submission types carry a real paid registration with an
  * amount in their metadata (see stripeWebhook.ts on the website). Generic
  * orders (Called & Crowned, digital guides) live only in the website's
- * `orders` table, whose own CSV export has no buyer email — there's no
- * reliable way to attribute those to a contact from an export alone.
+ * `orders` table; import those separately via importOrders.ts.
  */
 const TYPE_TO_PROGRAM_SLUG: Record<string, string> = {
   bold_out: "bold-out-masterclass",
@@ -60,6 +62,7 @@ export interface ImportSubmissionsResult {
   alreadyImported: number;
   skippedNoEmail: number;
   purchasesRecorded: number;
+  phoneOnlyPlaceholders: number;
 }
 
 export async function importSubmissionsCsv(csvText: string): Promise<ImportSubmissionsResult> {
@@ -81,10 +84,12 @@ export async function importSubmissionsCsv(csvText: string): Promise<ImportSubmi
   let alreadyImportedCount = 0;
   let skippedNoEmail = 0;
   let purchasesRecorded = 0;
+  let phoneOnlyPlaceholders = 0;
 
   for (const row of dataRows) {
-    const [id, name, emailRaw, phoneRaw, type, message, , createdAtRaw, , ghlTag, metadataRaw] = row;
-    const email = (emailRaw ?? "").trim().toLowerCase();
+    const { id, name, emailRaw, phoneRaw, type, message, createdAtRaw, tier, ghlTagCombined, metadataRaw } =
+      parseRow(row);
+    const email = emailRaw.trim().toLowerCase();
 
     if (!email) {
       skippedNoEmail += 1;
@@ -92,7 +97,16 @@ export async function importSubmissionsCsv(csvText: string): Promise<ImportSubmi
     }
 
     const phone = phoneRaw ? phoneRaw.replace(/^'/, "").trim() || undefined : undefined;
-    const tags = [type, ghlTag].map((t) => (t ?? "").trim()).filter(Boolean);
+    const ghlTags = ghlTagCombined.split(",").map((t) => t.trim()).filter(Boolean);
+    // The website can't store a truly blank email either, so phone-only
+    // attendees get a synthetic "phone-<number>@sfhv.local" placeholder.
+    // Tag those clearly so nobody ever tries to actually email that address.
+    const isPlaceholderEmail = /@sfhv\.local$/i.test(email);
+    if (isPlaceholderEmail) phoneOnlyPlaceholders += 1;
+    const tags = [type, ...ghlTags, isPlaceholderEmail ? "no-real-email" : undefined]
+      .map((t) => (t ?? "").trim())
+      .filter(Boolean);
+
     const createdAt = createdAtRaw ? new Date(createdAtRaw) : undefined;
     const validCreatedAt = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt : undefined;
 
@@ -121,7 +135,7 @@ export async function importSubmissionsCsv(csvText: string): Promise<ImportSubmi
         contact.id,
         `import.${type || "unknown"}`,
         trimmedMessage ? `${label}: ${trimmedMessage.slice(0, 140)}` : label,
-        { originalId: id, source: "manus-admin-export" },
+        { originalId: id, tier, source: "manus-admin-export" },
         validCreatedAt
       );
       newActivity += 1;
@@ -163,6 +177,50 @@ export async function importSubmissionsCsv(csvText: string): Promise<ImportSubmi
     alreadyImported: alreadyImportedCount,
     skippedNoEmail,
     purchasesRecorded,
+    phoneOnlyPlaceholders,
+  };
+}
+
+interface ParsedRow {
+  id: string;
+  name: string;
+  emailRaw: string;
+  phoneRaw: string;
+  type: string;
+  message: string;
+  createdAtRaw: string;
+  tier: string;
+  ghlTagCombined: string;
+  metadataRaw: string;
+}
+
+/**
+ * The front 8 columns (ID..Created At) are always at fixed positions. The
+ * back 3 (Tier, GHL Tag, Metadata) aren't reliable by position: this export
+ * doesn't quote GHL Tag even when it holds a comma-separated value like
+ * "VOICEACTIVATE,VA1026", so that single logical field splits across extra
+ * raw columns. Reconstruct it by taking the first back-field as Tier, the
+ * last as Metadata (always last, and reliably quoted when it's JSON), and
+ * joining everything in between back into one comma-separated tag string —
+ * which also naturally undoes the split. A stray trailing empty column some
+ * rows carry is stripped first so it doesn't get mistaken for Metadata.
+ */
+function parseRow(row: string[]): ParsedRow {
+  const [id, name, emailRaw, phoneRaw, type, message, , createdAtRaw] = row;
+  const back = row.slice(FRONT_COUNT);
+  while (back.length > 3 && back[back.length - 1] === "") back.pop();
+
+  return {
+    id: id ?? "",
+    name: name ?? "",
+    emailRaw: emailRaw ?? "",
+    phoneRaw: phoneRaw ?? "",
+    type: type ?? "",
+    message: message ?? "",
+    createdAtRaw: createdAtRaw ?? "",
+    tier: back[0] ?? "",
+    ghlTagCombined: back.slice(1, -1).join(","),
+    metadataRaw: back[back.length - 1] ?? "",
   };
 }
 
