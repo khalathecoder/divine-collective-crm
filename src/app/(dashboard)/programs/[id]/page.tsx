@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getProgram } from "@/lib/crm/programs";
 import { listContactsByProgram } from "@/lib/crm/contacts";
-import { EditPriceForm } from "./EditPriceForm";
+import { EditProgramForm } from "./EditProgramForm";
 import { CopyEmailsButton } from "./CopyEmailsButton";
 
 export default async function ProgramDetailPage({ params }: { params: { id: string } }) {
@@ -23,8 +23,8 @@ export default async function ProgramDetailPage({ params }: { params: { id: stri
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="card">
-          <h2 className="mb-3 font-semibold">Pricing</h2>
-          <EditPriceForm programId={program.id} currentPriceCents={program.priceCents} />
+          <h2 className="mb-3 font-semibold">Edit program</h2>
+          <EditProgramForm program={program} />
         </div>
 
         <div className="card">
