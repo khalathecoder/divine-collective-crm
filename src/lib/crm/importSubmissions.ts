@@ -89,20 +89,31 @@ export async function importSubmissionsCsv(csvText: string): Promise<ImportSubmi
   for (const row of dataRows) {
     const { id, name, emailRaw, phoneRaw, type, message, createdAtRaw, tier, ghlTagCombined, metadataRaw } =
       parseRow(row);
-    const email = emailRaw.trim().toLowerCase();
+    const phone = phoneRaw ? phoneRaw.replace(/^'/, "").trim() || undefined : undefined;
+
+    // The Contacts table requires an email, so a phone-only row (blank
+    // Email, real Phone) gets an internal placeholder synthesized from its
+    // phone number — this never touches the CSV, it only exists in the CRM
+    // so the row isn't lost. Some older exports instead embed the phone
+    // directly in a fake "phone-<number>@sfhv.local" email; that's honored
+    // the same way. Either way the contact is tagged so nobody emails it.
+    const rawEmail = emailRaw.trim().toLowerCase();
+    const alreadyFakeEmail = /@sfhv\.local$/i.test(rawEmail);
+    let email = rawEmail;
+    let isPlaceholderEmail = alreadyFakeEmail;
+    if (!email && phone) {
+      const digits = phone.replace(/\D/g, "");
+      email = `phone-${digits || id || "unknown"}@placeholder.local`;
+      isPlaceholderEmail = true;
+    }
 
     if (!email) {
       skippedNoEmail += 1;
       continue;
     }
-
-    const phone = phoneRaw ? phoneRaw.replace(/^'/, "").trim() || undefined : undefined;
-    const ghlTags = ghlTagCombined.split(",").map((t) => t.trim()).filter(Boolean);
-    // The website can't store a truly blank email either, so phone-only
-    // attendees get a synthetic "phone-<number>@sfhv.local" placeholder.
-    // Tag those clearly so nobody ever tries to actually email that address.
-    const isPlaceholderEmail = /@sfhv\.local$/i.test(email);
     if (isPlaceholderEmail) phoneOnlyPlaceholders += 1;
+
+    const ghlTags = ghlTagCombined.split(",").map((t) => t.trim()).filter(Boolean);
     const tags = [type, ...ghlTags, isPlaceholderEmail ? "no-real-email" : undefined]
       .map((t) => (t ?? "").trim())
       .filter(Boolean);
