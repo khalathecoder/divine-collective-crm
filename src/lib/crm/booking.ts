@@ -1,11 +1,12 @@
 import { and, eq, gte, lt } from "drizzle-orm";
 import { fromZonedTime, toZonedTime, format } from "date-fns-tz";
-import { db } from "../db";
+import { db, getDb } from "../db";
 import {
   appointmentTypes,
   availabilityRules,
   availabilityOverrides,
   appointments,
+  programs,
   type AppointmentType,
 } from "../db/schema";
 import { upsertContact, logContactEvent } from "./contacts";
@@ -19,17 +20,38 @@ export async function getAppointmentTypeBySlug(slug: string) {
   return db.query.appointmentTypes.findFirst({ where: eq(appointmentTypes.slug, slug) });
 }
 
-export async function getAppointmentTypeByProgramId(programId: number) {
+/** The calendar a program's bookings currently pull from, if it has one. */
+export async function getAppointmentTypeForProgram(programId: number) {
+  const program = await db.query.programs.findFirst({ where: eq(programs.id, programId) });
+  if (!program?.appointmentTypeId) return null;
   return db.query.appointmentTypes.findFirst({
-    where: eq(appointmentTypes.programId, programId),
+    where: eq(appointmentTypes.id, program.appointmentTypeId),
     with: { availabilityRules: true, availabilityOverrides: true },
   });
 }
 
+/** Every active calendar, with the names of every program currently using it. */
+export async function listCalendarsWithProgramNames() {
+  const types = await db.query.appointmentTypes.findMany({
+    where: eq(appointmentTypes.active, true),
+    with: { programs: { columns: { id: true, name: true } } },
+  });
+  return types.map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    durationMinutes: t.durationMinutes,
+    bufferMinutes: t.bufferMinutes,
+    programNames: t.programs.map((p) => p.name),
+  }));
+}
+
 /**
- * Creates a dedicated calendar for one program, named and slugged after it.
- * Its slots are independent of every other calendar — a booking here never
- * blocks or is blocked by bookings on another program's calendar.
+ * Creates a brand-new calendar dedicated to one program and points that
+ * program at it. To have several programs share one pool of hours instead
+ * (so a booking on one blocks that time for the others too), point them all
+ * at the same calendar with `attachProgramToCalendar` rather than giving
+ * each their own via this function.
  */
 export async function createCalendarForProgram(
   programId: number,
@@ -37,19 +59,29 @@ export async function createCalendarForProgram(
   programSlug: string,
   options?: { durationMinutes?: number; bufferMinutes?: number }
 ): Promise<AppointmentType> {
-  const [created] = await db
-    .insert(appointmentTypes)
-    .values({
-      slug: programSlug,
-      name: programName,
-      durationMinutes: options?.durationMinutes ?? 30,
-      bufferMinutes: options?.bufferMinutes ?? 15,
-      timezone: "America/New_York",
-      programId,
-    })
-    .returning();
-  if (!created) throw new Error("Failed to create calendar");
-  return created;
+  return getDb().transaction(async (tx) => {
+    const [created] = await tx
+      .insert(appointmentTypes)
+      .values({
+        slug: programSlug,
+        name: programName,
+        durationMinutes: options?.durationMinutes ?? 30,
+        bufferMinutes: options?.bufferMinutes ?? 15,
+        timezone: "America/New_York",
+      })
+      .returning();
+    if (!created) throw new Error("Failed to create calendar");
+    await tx.update(programs).set({ appointmentTypeId: created.id }).where(eq(programs.id, programId));
+    return created;
+  });
+}
+
+/** Points a program at an already-existing calendar, sharing its hours with whatever else uses it. */
+export async function attachProgramToCalendar(programId: number, appointmentTypeId: number): Promise<AppointmentType> {
+  const type = await db.query.appointmentTypes.findFirst({ where: eq(appointmentTypes.id, appointmentTypeId) });
+  if (!type) throw new Error("Calendar not found");
+  await db.update(programs).set({ appointmentTypeId }).where(eq(programs.id, programId));
+  return type;
 }
 
 export interface TimeSlot {

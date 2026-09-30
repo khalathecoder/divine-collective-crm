@@ -32,8 +32,8 @@ export const programsRelations = relations(programs, ({ many, one }) => ({
   purchases: many(purchases),
   funnels: many(funnels),
   appointmentType: one(appointmentTypes, {
-    fields: [programs.id],
-    references: [appointmentTypes.programId],
+    fields: [programs.appointmentTypeId],
+    references: [appointmentTypes.id],
   }),
 }));
 
@@ -42,11 +42,11 @@ export const purchasesRelations = relations(purchases, ({ one }) => ({
   program: one(programs, { fields: [purchases.programId], references: [programs.id] }),
 }));
 
-export const appointmentTypesRelations = relations(appointmentTypes, ({ many, one }) => ({
+export const appointmentTypesRelations = relations(appointmentTypes, ({ many }) => ({
   appointments: many(appointments),
   availabilityRules: many(availabilityRules),
   availabilityOverrides: many(availabilityOverrides),
-  program: one(programs, { fields: [appointmentTypes.programId], references: [programs.id] }),
+  programs: many(programs),
 }));
 
 export const availabilityRulesRelations = relations(availabilityRules, ({ one }) => ({

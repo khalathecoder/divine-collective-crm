@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { guardAdminRequest } from "@/lib/adminGuard";
 import { getProgram } from "@/lib/crm/programs";
-import { createCalendarForProgram, getAppointmentTypeByProgramId } from "@/lib/crm/booking";
+import { createCalendarForProgram, attachProgramToCalendar } from "@/lib/crm/booking";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = await guardAdminRequest(req);
@@ -11,10 +11,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const program = await getProgram(programId);
   if (!program) return NextResponse.json({ error: "Program not found" }, { status: 404 });
 
-  const existing = await getAppointmentTypeByProgramId(programId);
-  if (existing) return NextResponse.json({ error: "This program already has a calendar" }, { status: 409 });
-
   const body = await req.json().catch(() => ({}));
+
+  // Point this program at an existing calendar (sharing its hours with
+  // whatever else uses it) instead of creating a new dedicated one.
+  const existingAppointmentTypeId = Number(body?.appointmentTypeId);
+  if (Number.isFinite(existingAppointmentTypeId) && existingAppointmentTypeId > 0) {
+    try {
+      const appointmentType = await attachProgramToCalendar(programId, existingAppointmentTypeId);
+      return NextResponse.json({ appointmentType }, { status: 200 });
+    } catch (error: any) {
+      console.error("[programs/calendar] Failed to attach:", error);
+      return NextResponse.json({ error: error?.message ?? "Failed to attach calendar" }, { status: 400 });
+    }
+  }
+
   const durationMinutes = Number(body?.durationMinutes);
   const bufferMinutes = Number(body?.bufferMinutes);
 

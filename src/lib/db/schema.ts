@@ -94,6 +94,15 @@ export const programs = pgTable(
     currency: varchar("currency", { length: 3 }).notNull().default("usd"),
     type: varchar("type", { length: 40 }).notNull().default("coaching"), // coaching | digital | event | membership
     active: boolean("active").notNull().default(true),
+    /**
+     * Which calendar this program's bookings pull from. Not unique on
+     * purpose: several programs can point at the same calendar to share one
+     * pool of hours (so booking one blocks that time for the others too),
+     * or each can have its own dedicated calendar.
+     */
+    appointmentTypeId: integer("appointment_type_id").references(() => appointmentTypes.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -149,17 +158,10 @@ export const appointmentTypes = pgTable(
     bufferMinutes: integer("buffer_minutes").notNull().default(15),
     timezone: varchar("timezone", { length: 60 }).notNull().default("America/New_York"),
     active: boolean("active").notNull().default(true),
-    /**
-     * When set, this calendar belongs to one Program (e.g. "Crown Hour"
-     * booking a private session). Bookings on one appointment type never
-     * block slots on another — each has its own independent calendar.
-     */
-    programId: integer("program_id").references(() => programs.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
     slugIdx: uniqueIndex("appointment_types_slug_idx").on(table.slug),
-    programIdx: uniqueIndex("appointment_types_program_idx").on(table.programId),
   })
 );
 

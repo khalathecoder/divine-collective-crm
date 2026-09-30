@@ -65,10 +65,11 @@ export async function createProgramWithCalendar(
         durationMinutes: calendar.durationMinutes,
         bufferMinutes: calendar.bufferMinutes,
         timezone: calendar.timezone,
-        programId: program.id,
       })
       .returning();
     if (!appointmentType) throw new Error("Failed to create calendar");
+
+    await tx.update(programs).set({ appointmentTypeId: appointmentType.id }).where(eq(programs.id, program.id));
 
     await tx.insert(availabilityRules).values({
       appointmentTypeId: appointmentType.id,
@@ -77,7 +78,7 @@ export async function createProgramWithCalendar(
       endTime: calendar.endTime,
     });
 
-    return { program, appointmentType };
+    return { program: { ...program, appointmentTypeId: appointmentType.id }, appointmentType };
   });
 }
 
