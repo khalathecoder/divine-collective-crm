@@ -34,15 +34,16 @@ export async function getAppointmentTypeByProgramId(programId: number) {
 export async function createCalendarForProgram(
   programId: number,
   programName: string,
-  programSlug: string
+  programSlug: string,
+  options?: { durationMinutes?: number; bufferMinutes?: number }
 ): Promise<AppointmentType> {
   const [created] = await db
     .insert(appointmentTypes)
     .values({
       slug: programSlug,
       name: programName,
-      durationMinutes: 30,
-      bufferMinutes: 15,
+      durationMinutes: options?.durationMinutes ?? 30,
+      bufferMinutes: options?.bufferMinutes ?? 15,
       timezone: "America/New_York",
       programId,
     })

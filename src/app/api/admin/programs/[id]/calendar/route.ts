@@ -14,8 +14,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const existing = await getAppointmentTypeByProgramId(programId);
   if (existing) return NextResponse.json({ error: "This program already has a calendar" }, { status: 409 });
 
+  const body = await req.json().catch(() => ({}));
+  const durationMinutes = Number(body?.durationMinutes);
+  const bufferMinutes = Number(body?.bufferMinutes);
+
   try {
-    const appointmentType = await createCalendarForProgram(programId, program.name, program.slug);
+    const appointmentType = await createCalendarForProgram(programId, program.name, program.slug, {
+      durationMinutes: Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : undefined,
+      bufferMinutes: Number.isFinite(bufferMinutes) && bufferMinutes >= 0 ? bufferMinutes : undefined,
+    });
     return NextResponse.json({ appointmentType }, { status: 201 });
   } catch (error: any) {
     if (error?.code === "23505") {
