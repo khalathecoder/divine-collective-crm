@@ -132,7 +132,7 @@ export function ProgramCalendarSection({
             <p className="mb-3 text-sm text-gray-500">
               Public booking link: <code>/book/{appointmentType.slug}</code>
             </p>
-            <AvailabilityEditor type={appointmentType} />
+            <AvailabilityEditor type={appointmentType} showDelete={false} />
           </>
         )}
       </div>

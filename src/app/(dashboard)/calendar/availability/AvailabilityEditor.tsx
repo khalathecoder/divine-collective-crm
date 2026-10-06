@@ -2,21 +2,53 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AppointmentType, AvailabilityRule, AvailabilityOverride } from "@/lib/db/schema";
+import type { AppointmentType, AvailabilityRule, AvailabilityOverride, Program } from "@/lib/db/schema";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 type TypeWithAvailability = AppointmentType & {
   availabilityRules: AvailabilityRule[];
   availabilityOverrides: AvailabilityOverride[];
+  programs?: Program[];
 };
 
-export function AvailabilityEditor({ type }: { type: TypeWithAvailability }) {
+export function AvailabilityEditor({
+  type,
+  showDelete = true,
+}: {
+  type: TypeWithAvailability;
+  /** Hide the delete button when this calendar may be shared by several programs (see ProgramCalendarSection) — deleting it from here would have a bigger, less visible blast radius than from the main Calendar page. */
+  showDelete?: boolean;
+}) {
   const router = useRouter();
   const [weekday, setWeekday] = useState("1");
   const [startTime, setStartTime] = useState("10:00");
   const [endTime, setEndTime] = useState("16:00");
   const [blockDate, setBlockDate] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function deleteCalendar() {
+    const programNames = (type.programs ?? []).map((p) => p.name);
+    const warning =
+      programNames.length > 0
+        ? `"${type.name}" is still used by: ${programNames.join(", ")}. Deleting it will leave ${
+            programNames.length > 1 ? "those programs" : "that program"
+          } without a calendar. Delete anyway?`
+        : `Delete the "${type.name}" calendar? This can't be undone.`;
+    if (!confirm(warning)) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await fetch(`/api/admin/appointment-types/${type.id}`, { method: "DELETE" });
+    setDeleting(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setDeleteError(data.error ?? "Could not delete calendar");
+      return;
+    }
+    router.refresh();
+  }
 
   async function addRule() {
     await fetch("/api/admin/availability", {
@@ -50,12 +82,24 @@ export function AvailabilityEditor({ type }: { type: TypeWithAvailability }) {
 
   return (
     <div className="card space-y-4">
-      <div>
-        <h2 className="font-semibold">{type.name}</h2>
-        <p className="text-xs text-gray-400">
-          {type.durationMinutes} min · booking link: <code>/book/{type.slug}</code>
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-semibold">{type.name}</h2>
+          <p className="text-xs text-gray-400">
+            {type.durationMinutes} min · booking link: <code>/book/{type.slug}</code>
+          </p>
+        </div>
+        {showDelete && (
+          <button
+            onClick={deleteCalendar}
+            disabled={deleting}
+            className="shrink-0 text-xs text-red-600 hover:underline disabled:opacity-50"
+          >
+            {deleting ? "Deleting..." : "Delete this calendar"}
+          </button>
+        )}
       </div>
+      {deleteError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{deleteError}</p>}
 
       <div>
         <p className="mb-2 text-sm font-medium text-gray-700">Weekly availability</p>
